@@ -2,7 +2,7 @@
 
 <img src="https://chatjimmy.ai/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Fchat_jimmy.7c9fc307.png&w=640&q=75" alt="ChatJimmy" width="200">
 
-An OpenAI-compatible proxy that lets [OpenCode](https://opencode.ai) (and any OpenAI-compatible client) use [ChatJimmy](https://chatjimmy.ai)'s hardware-accelerated Llama 3.1 8B, powered by [Taalas](https://taalas.com)' custom silicon running at ~17K tokens/sec.
+An OpenAI-compatible proxy that let's you use [ChatJimmy](https://chatjimmy.ai)'s hardware-accelerated Llama 3.1 8B, powered by [Taalas](https://taalas.com)' custom silicon running at ~17K tokens/sec.
 
 ## Usage
 
