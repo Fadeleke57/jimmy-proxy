@@ -1,6 +1,6 @@
 # ChatJimmy Completions API Proxy
 
-![ChatJimmy](https://chatjimmy.ai/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Fchat_jimmy.7c9fc307.png&w=640&q=75)
+<img src="https://chatjimmy.ai/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Fchat_jimmy.7c9fc307.png&w=640&q=75" alt="ChatJimmy" width="200">
 
 An OpenAI-compatible proxy that lets [OpenCode](https://opencode.ai) (and any OpenAI-compatible client) use [ChatJimmy](https://chatjimmy.ai)'s hardware-accelerated Llama 3.1 8B, powered by [Taalas](https://taalas.com)' custom silicon running at ~17K tokens/sec.
 
@@ -10,8 +10,11 @@ An OpenAI-compatible proxy that lets [OpenCode](https://opencode.ai) (and any Op
 # Start the proxy
 python proxy.py
 
-# Or with options
-python proxy.py --port 4100 --log-file proxy.log
+# Enable file logging
+python proxy.py --log
+
+# Custom port and log file
+python proxy.py --port 4100 --log --log-file custom.log
 ```
 
 ## API

@@ -28,10 +28,6 @@ MODELS = {
 }
 
 
-# ---------------------------------------------------------------------------
-# Tool-call helpers
-# ---------------------------------------------------------------------------
-
 def _first_sentence(text):
     """Return the first sentence (or first 120 chars) of a description."""
     if not text:
@@ -281,14 +277,13 @@ def extract_text_content(content):
         return "\n".join(parts)
     return str(content)
 
-# Console logger — minimal
+
 console = logging.getLogger("proxy.console")
 
-# File logger — everything
 filelog = logging.getLogger("proxy.file")
 
 
-def setup_logging(log_file="proxy.log"):
+def setup_logging(log_file="proxy.log", enable_log=True):
     fmt = logging.Formatter("%(asctime)s %(message)s", datefmt="%H:%M:%S")
 
     console.setLevel(logging.INFO)
@@ -296,10 +291,13 @@ def setup_logging(log_file="proxy.log"):
     ch.setFormatter(fmt)
     console.addHandler(ch)
 
-    filelog.setLevel(logging.DEBUG)
-    fh = logging.FileHandler(log_file)
-    fh.setFormatter(logging.Formatter("%(asctime)s %(message)s", datefmt="%Y-%m-%d %H:%M:%S"))
-    filelog.addHandler(fh)
+    if enable_log:
+        filelog.setLevel(logging.DEBUG)
+        fh = logging.FileHandler(log_file)
+        fh.setFormatter(logging.Formatter("%(asctime)s %(message)s", datefmt="%Y-%m-%d %H:%M:%S"))
+        filelog.addHandler(fh)
+    else:
+        filelog.setLevel(logging.CRITICAL + 1)
 
 
 def log(msg):
@@ -606,10 +604,11 @@ class ProxyHandler(BaseHTTPRequestHandler):
 def main():
     parser = argparse.ArgumentParser(description="ChatJimmy -> OpenAI proxy")
     parser.add_argument("--port", type=int, default=4100, help="Port to listen on")
-    parser.add_argument("--log-file", type=str, default="proxy.log", help="Log file path")
+    parser.add_argument("--log", action="store_true", help="Enable file logging")
+    parser.add_argument("--log-file", type=str, default="proxy.log", help="Log file path (requires --log)")
     args = parser.parse_args()
 
-    setup_logging(args.log_file)
+    setup_logging(args.log_file, enable_log=args.log)
     log(f"Proxy listening on http://localhost:{args.port}/v1 -> {UPSTREAM_URL}")
 
     server = HTTPServer(("127.0.0.1", args.port), ProxyHandler)
