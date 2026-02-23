@@ -1,3 +1,4 @@
 .claude
 __pycache__
 proxy.log
+.ruff_cache

@@ -44,7 +44,7 @@ cp opencode.json /path/to/your/project/opencode.json
 | `model`       | string           | `llama3.1-8B` | Model ID                                                                                 |
 | `messages`    | array            | required      | Array of `{role, content}` messages (`system`, `user`, `assistant`, `tool`)              |
 | `stream`      | boolean          | `false`       | Enable SSE streaming                                                                     |
-| `tools`       | array            | `[]`          | OpenAI-format tool/function definitions                                                  |
+| `tools`       | array            | `[]`          | OpenAI-format tool/function definitions (filtered, see below)                            |
 | `tool_choice` | string \| object | `"auto"`      | `"auto"`, `"none"`, `"required"`, or `{"type": "function", "function": {"name": "..."}}` |
 
 **Response format** (non-streaming):
@@ -68,6 +68,14 @@ cp opencode.json /path/to/your/project/opencode.json
 ```
 
 When `stream: true`, the proxy returns SSE chunks in the standard `chat.completion.chunk` format.
+
+### Tool filtering
+
+The proxy filters out extraneous tools from OpenCode before sending them to the model. Fewer tools means less prompt bloat and better tool-calling accuracy. The following tools are stripped from incoming requests:
+
+`webfetch`, `todowrite`, `skill`, `question`, `task`
+
+These are high-level orchestration tools that a small model struggles to use correctly, and removing them keeps the model focused on the core tools it can actually handle (file I/O, shell commands, search, etc.).
 
 ## Limitations
 
