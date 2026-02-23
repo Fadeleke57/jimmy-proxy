@@ -14,7 +14,15 @@ python proxy.py
 python proxy.py --port 4100 --log-file proxy.log
 ```
 
-Then point OpenCode (or any OpenAI-compatible client) at `http://localhost:4100/v1` using the config in `opencode.json`.
+Then point OpenCode (or any OpenAI-compatible client) at `http://localhost:4100/v1`.
+
+### OpenCode setup
+
+An `opencode.json` config is included in this directory. Copy it to your project root to use ChatJimmy as a provider in OpenCode:
+
+```bash
+cp opencode.json /path/to/your/project/opencode.json
+```
 
 ## API
 
