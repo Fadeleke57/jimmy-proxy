@@ -4,7 +4,7 @@ Proxy server that translates OpenAI-compatible API requests
 to chatjimmy.ai's custom format and back.
 
 Usage:
-    python proxy.py [--port 4100]
+    python proxy.py [--port 4100] [--log] [--log-file proxy.log]
 
 Then point OpenCode at http://localhost:4100/v1
 Logs are written to proxy.log (full request/response details).
