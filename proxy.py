@@ -97,12 +97,32 @@ def format_tools_for_prompt(tools, tool_choice=None):
             line += f" — {desc}"
         lines.append(line)
 
-    # Full JSON schema for Llama 3.1 to follow precisely
+    # Compact JSON schema (strip verbose descriptions to stay within upstream limits)
     try:
+        compact_tools = []
+        for tool in tools:
+            if tool.get("type") != "function":
+                continue
+            func = tool["function"]
+            params = func.get("parameters", {})
+            compact_props = {}
+            for pname, pinfo in params.get("properties", {}).items():
+                compact_props[pname] = {"type": pinfo.get("type", "string")}
+                if "enum" in pinfo:
+                    compact_props[pname]["enum"] = pinfo["enum"]
+                if "items" in pinfo and isinstance(pinfo["items"], dict):
+                    compact_props[pname]["items"] = {"type": pinfo["items"].get("type", "object")}
+            compact_tools.append({
+                "name": func.get("name", ""),
+                "parameters": {
+                    "type": "object",
+                    "properties": compact_props,
+                    "required": params.get("required", []),
+                },
+            })
         lines.append("")
-        lines.append("Tool definitions (JSON schema):")
         lines.append("<tools>")
-        lines.append(json.dumps(tools, indent=2))
+        lines.append(json.dumps(compact_tools))
         lines.append("</tools>")
     except (TypeError, ValueError):
         pass
@@ -430,6 +450,12 @@ class ProxyHandler(BaseHTTPRequestHandler):
         full_system_prompt = system_prompt.strip()
         if tools:
             full_system_prompt += format_tools_for_prompt(tools, tool_choice)
+
+        # ChatJimmy returns empty responses when system prompt exceeds ~30K chars
+        MAX_SYSTEM_PROMPT = 28000
+        if len(full_system_prompt) > MAX_SYSTEM_PROMPT:
+            logfile(f"WARNING: system prompt is {len(full_system_prompt)} chars, truncating to {MAX_SYSTEM_PROMPT}")
+            full_system_prompt = full_system_prompt[:MAX_SYSTEM_PROMPT]
 
         jimmy_payload = {
             "messages": chat_messages,
