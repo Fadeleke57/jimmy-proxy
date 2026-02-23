@@ -22,7 +22,7 @@ import re
 
 UPSTREAM_URL = "https://chatjimmy.ai/api/chat"
 DEFAULT_MODEL = "llama3.1-8B"
-
+FILTERED_TOOLS = {"webfetch", "todowrite", "skill", "question", "task"}
 MODELS = {
     "llama3.1-8B": "llama3.1-8B",
 }
@@ -107,15 +107,19 @@ def format_tools_for_prompt(tools, tool_choice=None):
                 if "enum" in pinfo:
                     compact_props[pname]["enum"] = pinfo["enum"]
                 if "items" in pinfo and isinstance(pinfo["items"], dict):
-                    compact_props[pname]["items"] = {"type": pinfo["items"].get("type", "object")}
-            compact_tools.append({
-                "name": func.get("name", ""),
-                "parameters": {
-                    "type": "object",
-                    "properties": compact_props,
-                    "required": params.get("required", []),
-                },
-            })
+                    compact_props[pname]["items"] = {
+                        "type": pinfo["items"].get("type", "object")
+                    }
+            compact_tools.append(
+                {
+                    "name": func.get("name", ""),
+                    "parameters": {
+                        "type": "object",
+                        "properties": compact_props,
+                        "required": params.get("required", []),
+                    },
+                }
+            )
         lines.append("")
         lines.append("<tools>")
         lines.append(json.dumps(compact_tools))
@@ -246,14 +250,16 @@ def parse_tool_calls(content, tools=None):
                         arguments = item["function"].get("arguments")
                 schema = schema_index.get(name, {})
                 arguments = _normalize_tool_args(name, arguments, schema)
-                tool_calls.append({
-                    "id": f"call_{uuid.uuid4().hex[:8]}",
-                    "type": "function",
-                    "function": {
-                        "name": name,
-                        "arguments": json.dumps(arguments),
-                    },
-                })
+                tool_calls.append(
+                    {
+                        "id": f"call_{uuid.uuid4().hex[:8]}",
+                        "type": "function",
+                        "function": {
+                            "name": name,
+                            "arguments": json.dumps(arguments),
+                        },
+                    }
+                )
         except (json.JSONDecodeError, KeyError, AttributeError):
             continue
 
@@ -294,7 +300,9 @@ def setup_logging(log_file="proxy.log", enable_log=True):
     if enable_log:
         filelog.setLevel(logging.DEBUG)
         fh = logging.FileHandler(log_file)
-        fh.setFormatter(logging.Formatter("%(asctime)s %(message)s", datefmt="%Y-%m-%d %H:%M:%S"))
+        fh.setFormatter(
+            logging.Formatter("%(asctime)s %(message)s", datefmt="%Y-%m-%d %H:%M:%S")
+        )
         filelog.addHandler(fh)
     else:
         filelog.setLevel(logging.CRITICAL + 1)
@@ -345,18 +353,21 @@ class ProxyHandler(BaseHTTPRequestHandler):
     def do_GET(self):
         if self.path in ("/v1/models", "/v1/models/"):
             log(f"GET /v1/models -> {len(MODELS)} model(s)")
-            self._send_json(200, {
-                "object": "list",
-                "data": [
-                    {
-                        "id": model_id,
-                        "object": "model",
-                        "created": int(time.time()),
-                        "owned_by": "chatjimmy",
-                    }
-                    for model_id in MODELS
-                ],
-            })
+            self._send_json(
+                200,
+                {
+                    "object": "list",
+                    "data": [
+                        {
+                            "id": model_id,
+                            "object": "model",
+                            "created": int(time.time()),
+                            "owned_by": "chatjimmy",
+                        }
+                        for model_id in MODELS
+                    ],
+                },
+            )
         else:
             self._send_json(404, {"error": "not found"})
 
@@ -377,16 +388,25 @@ class ProxyHandler(BaseHTTPRequestHandler):
         messages = openai_req.get("messages", [])
         model = openai_req.get("model", DEFAULT_MODEL)
         stream = openai_req.get("stream", False)
-        tools = openai_req.get("tools", [])
+
+        tools = [
+            t
+            for t in openai_req.get("tools", [])
+            if t.get("function", {}).get("name", "").lower() not in FILTERED_TOOLS
+        ]
         tool_choice = openai_req.get("tool_choice", "auto")
 
         last_content = extract_text_content(
             messages[-1].get("content", "") if messages else ""
         )
-        last_preview = last_content[:100] + "..." if len(last_content) > 100 else last_content
+        last_preview = (
+            last_content[:100] + "..." if len(last_content) > 100 else last_content
+        )
 
         # Console: short summary
-        log(f"-> model={model} msgs={len(messages)} stream={stream} tools={len(tools)} | \"{last_preview}\"")
+        log(
+            f'-> model={model} msgs={len(messages)} stream={stream} tools={len(tools)} | "{last_preview}"'
+        )
 
         # File: full incoming request
         logfile("--- INCOMING REQUEST ---")
@@ -418,7 +438,9 @@ class ProxyHandler(BaseHTTPRequestHandler):
                         args = func.get("arguments", {})
                     parts.append(
                         "<tool_call>\n"
-                        + json.dumps({"name": func.get("name", ""), "arguments": args}, indent=2)
+                        + json.dumps(
+                            {"name": func.get("name", ""), "arguments": args}, indent=2
+                        )
                         + "\n</tool_call>"
                     )
                 chat_messages.append({"role": "assistant", "content": "\n".join(parts)})
@@ -432,14 +454,16 @@ class ProxyHandler(BaseHTTPRequestHandler):
                     "tool_call_id": tid,
                     "content": content,
                 }
-                chat_messages.append({
-                    "role": "user",
-                    "content": (
-                        "<tool_result>\n"
-                        + json.dumps(tool_result, indent=2)
-                        + "\n</tool_result>"
-                    ),
-                })
+                chat_messages.append(
+                    {
+                        "role": "user",
+                        "content": (
+                            "<tool_result>\n"
+                            + json.dumps(tool_result, indent=2)
+                            + "\n</tool_result>"
+                        ),
+                    }
+                )
 
             else:
                 chat_messages.append({"role": role, "content": content})
@@ -452,7 +476,9 @@ class ProxyHandler(BaseHTTPRequestHandler):
         # ChatJimmy returns empty responses when system prompt exceeds ~30K chars
         MAX_SYSTEM_PROMPT = 28000
         if len(full_system_prompt) > MAX_SYSTEM_PROMPT:
-            logfile(f"WARNING: system prompt is {len(full_system_prompt)} chars, truncating to {MAX_SYSTEM_PROMPT}")
+            logfile(
+                f"WARNING: system prompt is {len(full_system_prompt)} chars, truncating to {MAX_SYSTEM_PROMPT}"
+            )
             full_system_prompt = full_system_prompt[:MAX_SYSTEM_PROMPT]
 
         jimmy_payload = {
@@ -481,8 +507,8 @@ class ProxyHandler(BaseHTTPRequestHandler):
                     "Origin": "https://chatjimmy.ai",
                     "Referer": "https://chatjimmy.ai/",
                     "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
-                                  "AppleWebKit/537.36 (KHTML, like Gecko) "
-                                  "Chrome/145.0.0.0 Safari/537.36",
+                    "AppleWebKit/537.36 (KHTML, like Gecko) "
+                    "Chrome/145.0.0.0 Safari/537.36",
                 },
             )
             ctx = ssl.create_default_context()
@@ -501,9 +527,13 @@ class ProxyHandler(BaseHTTPRequestHandler):
         logfile(raw_response)
 
         # Strip stats, parse usage
-        content = re.sub(r"<\|stats\|>.*?<\|/stats\|>", "", raw_response, flags=re.DOTALL).strip()
+        content = re.sub(
+            r"<\|stats\|>.*?<\|/stats\|>", "", raw_response, flags=re.DOTALL
+        ).strip()
         usage = {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}
-        stats_match = re.search(r"<\|stats\|>(.*?)<\|/stats\|>", raw_response, re.DOTALL)
+        stats_match = re.search(
+            r"<\|stats\|>(.*?)<\|/stats\|>", raw_response, re.DOTALL
+        )
         if stats_match:
             try:
                 stats = json.loads(stats_match.group(1))
@@ -532,7 +562,7 @@ class ProxyHandler(BaseHTTPRequestHandler):
             message = {"role": "assistant", "content": content}
             reply_preview = content[:100] + "..." if len(content) > 100 else content
 
-        log(f"<- {elapsed:.2f}s {usage['total_tokens']}tok | \"{reply_preview}\"")
+        log(f'<- {elapsed:.2f}s {usage["total_tokens"]}tok | "{reply_preview}"')
 
         completion_id = f"chatcmpl-{uuid.uuid4().hex[:12]}"
 
@@ -541,43 +571,112 @@ class ProxyHandler(BaseHTTPRequestHandler):
             if tool_calls_parsed:
                 # Stream tool-call chunks in OpenAI's format
                 chunks = [
-                    {"id": completion_id, "object": "chat.completion.chunk",
-                     "created": now, "model": model,
-                     "choices": [{"index": 0, "delta": {"role": "assistant", "content": ""}, "finish_reason": None}]},
+                    {
+                        "id": completion_id,
+                        "object": "chat.completion.chunk",
+                        "created": now,
+                        "model": model,
+                        "choices": [
+                            {
+                                "index": 0,
+                                "delta": {"role": "assistant", "content": ""},
+                                "finish_reason": None,
+                            }
+                        ],
+                    },
                 ]
                 if text_content:
                     chunks.append(
-                        {"id": completion_id, "object": "chat.completion.chunk",
-                         "created": now, "model": model,
-                         "choices": [{"index": 0, "delta": {"content": text_content}, "finish_reason": None}]})
+                        {
+                            "id": completion_id,
+                            "object": "chat.completion.chunk",
+                            "created": now,
+                            "model": model,
+                            "choices": [
+                                {
+                                    "index": 0,
+                                    "delta": {"content": text_content},
+                                    "finish_reason": None,
+                                }
+                            ],
+                        }
+                    )
                 for i, tc in enumerate(tool_calls_parsed):
                     chunks.append(
-                        {"id": completion_id, "object": "chat.completion.chunk",
-                         "created": now, "model": model,
-                         "choices": [{"index": 0, "delta": {"tool_calls": [{
-                             "index": i,
-                             "id": tc["id"],
-                             "type": "function",
-                             "function": {
-                                 "name": tc["function"]["name"],
-                                 "arguments": tc["function"]["arguments"],
-                             },
-                         }]}, "finish_reason": None}]})
+                        {
+                            "id": completion_id,
+                            "object": "chat.completion.chunk",
+                            "created": now,
+                            "model": model,
+                            "choices": [
+                                {
+                                    "index": 0,
+                                    "delta": {
+                                        "tool_calls": [
+                                            {
+                                                "index": i,
+                                                "id": tc["id"],
+                                                "type": "function",
+                                                "function": {
+                                                    "name": tc["function"]["name"],
+                                                    "arguments": tc["function"][
+                                                        "arguments"
+                                                    ],
+                                                },
+                                            }
+                                        ]
+                                    },
+                                    "finish_reason": None,
+                                }
+                            ],
+                        }
+                    )
                 chunks.append(
-                    {"id": completion_id, "object": "chat.completion.chunk",
-                     "created": now, "model": model,
-                     "choices": [{"index": 0, "delta": {}, "finish_reason": "tool_calls"}]})
+                    {
+                        "id": completion_id,
+                        "object": "chat.completion.chunk",
+                        "created": now,
+                        "model": model,
+                        "choices": [
+                            {"index": 0, "delta": {}, "finish_reason": "tool_calls"}
+                        ],
+                    }
+                )
             else:
                 chunks = [
-                    {"id": completion_id, "object": "chat.completion.chunk",
-                     "created": now, "model": model,
-                     "choices": [{"index": 0, "delta": {"role": "assistant"}, "finish_reason": None}]},
-                    {"id": completion_id, "object": "chat.completion.chunk",
-                     "created": now, "model": model,
-                     "choices": [{"index": 0, "delta": {"content": content}, "finish_reason": None}]},
-                    {"id": completion_id, "object": "chat.completion.chunk",
-                     "created": now, "model": model,
-                     "choices": [{"index": 0, "delta": {}, "finish_reason": "stop"}]},
+                    {
+                        "id": completion_id,
+                        "object": "chat.completion.chunk",
+                        "created": now,
+                        "model": model,
+                        "choices": [
+                            {
+                                "index": 0,
+                                "delta": {"role": "assistant"},
+                                "finish_reason": None,
+                            }
+                        ],
+                    },
+                    {
+                        "id": completion_id,
+                        "object": "chat.completion.chunk",
+                        "created": now,
+                        "model": model,
+                        "choices": [
+                            {
+                                "index": 0,
+                                "delta": {"content": content},
+                                "finish_reason": None,
+                            }
+                        ],
+                    },
+                    {
+                        "id": completion_id,
+                        "object": "chat.completion.chunk",
+                        "created": now,
+                        "model": model,
+                        "choices": [{"index": 0, "delta": {}, "finish_reason": "stop"}],
+                    },
                 ]
             self._send_sse(chunks)
         else:
@@ -586,7 +685,9 @@ class ProxyHandler(BaseHTTPRequestHandler):
                 "object": "chat.completion",
                 "created": int(time.time()),
                 "model": model,
-                "choices": [{"index": 0, "message": message, "finish_reason": finish_reason}],
+                "choices": [
+                    {"index": 0, "message": message, "finish_reason": finish_reason}
+                ],
                 "usage": usage,
             }
             self._send_json(200, openai_response)
@@ -605,7 +706,12 @@ def main():
     parser = argparse.ArgumentParser(description="ChatJimmy -> OpenAI proxy")
     parser.add_argument("--port", type=int, default=4100, help="Port to listen on")
     parser.add_argument("--log", action="store_true", help="Enable file logging")
-    parser.add_argument("--log-file", type=str, default="proxy.log", help="Log file path (requires --log)")
+    parser.add_argument(
+        "--log-file",
+        type=str,
+        default="proxy.log",
+        help="Log file path (requires --log)",
+    )
     args = parser.parse_args()
 
     setup_logging(args.log_file, enable_log=args.log)

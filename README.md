@@ -39,13 +39,13 @@ cp opencode.json /path/to/your/project/opencode.json
 
 **Request body:**
 
-| Field | Type | Default | Description |
-|-------|------|---------|-------------|
-| `model` | string | `llama3.1-8B` | Model ID |
-| `messages` | array | required | Array of `{role, content}` messages (`system`, `user`, `assistant`, `tool`) |
-| `stream` | boolean | `false` | Enable SSE streaming |
-| `tools` | array | `[]` | OpenAI-format tool/function definitions |
-| `tool_choice` | string \| object | `"auto"` | `"auto"`, `"none"`, `"required"`, or `{"type": "function", "function": {"name": "..."}}` |
+| Field         | Type             | Default       | Description                                                                              |
+| ------------- | ---------------- | ------------- | ---------------------------------------------------------------------------------------- |
+| `model`       | string           | `llama3.1-8B` | Model ID                                                                                 |
+| `messages`    | array            | required      | Array of `{role, content}` messages (`system`, `user`, `assistant`, `tool`)              |
+| `stream`      | boolean          | `false`       | Enable SSE streaming                                                                     |
+| `tools`       | array            | `[]`          | OpenAI-format tool/function definitions                                                  |
+| `tool_choice` | string \| object | `"auto"`      | `"auto"`, `"none"`, `"required"`, or `{"type": "function", "function": {"name": "..."}}` |
 
 **Response format** (non-streaming):
 

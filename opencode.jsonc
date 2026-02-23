@@ -5,13 +5,13 @@
       "npm": "@ai-sdk/openai-compatible",
       "name": "ChatJimmy",
       "options": {
-        "baseURL": "http://localhost:4100/v1" // If you change the port, update this
+        "baseURL": "http://localhost:4100/v1", // If you change the port, update this
       },
       "models": {
         "llama3.1-8B": {
-          "name": "Llama 3.1 8B (ChatJimmy)"
-        }
-      }
-    }
-  }
+          "name": "Llama 3.1 8B (ChatJimmy)",
+        },
+      },
+    },
+  },
 }
