@@ -1,4 +1,4 @@
-# ChatJimmy API Completions Proxy
+# ChatJimmy Completions API Proxy
 
 ![ChatJimmy](https://chatjimmy.ai/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Fchat_jimmy.7c9fc307.png&w=640&q=75)
 
